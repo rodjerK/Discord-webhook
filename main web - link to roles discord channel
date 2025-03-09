@@ -1,0 +1,99 @@
+const POST_URL = ""; // URL-webhook
+
+const USERNAME = "Помощник HR-менеджера"; // Имя от кого будет пост
+const AVATAR_URL = ""; // Ссылка на аватар
+const COLOR = 16755567; // Цвет линии слева (персиковый)
+const TITLE = "Новое заявление"; // Заголовок 
+const FOOTER = "Government | 2025"; // Текст снизу
+const TIMESTAMP = true; // Время поста снизу.
+
+// Роли для разных отделов
+const ROLES = {
+    "Министерство Труда": "<@&1088799242920931409>, <@&1088799517777858631>",
+    "Министерство Культуры": "<@&1092876573289488424>, <@&1092876666025562223>",
+    "Министерство Здравоохранения": "<@&1140692932891000874>, <@&1140716207385882764>",
+    "Министерство Национальной Безопасности": "<@&1096483908566122567>, <@&1097476939343736833>",
+    "Прокуратура": "<@&1086341639552897145> <@&1086341640215613474> <@&1086341676949315595>",
+    "Судебная власть": "<@&1086341636050669710>, <@&1106954151822372946>",
+    "Адвокатура": "<@&1086341643965317170>, <@&1086341646855188660>",
+    "USSS": "<@&1086341650114150531> <@&1086341651330515105>"
+};
+
+function onSubmit(e) {
+    const response = e.response.getItemResponses();
+    let items = [];
+    let selectedDepartment = ""; // Для хранения выбранного отдела
+    let content = ""; // Для хранения контента (роли)
+
+    for (const responseAnswer of response) {
+        const question = responseAnswer.getItem().getTitle();
+        const answer = responseAnswer.getResponse();
+        let parts = [];
+
+        try {
+            parts = answer.match(/[\s\S]{1,1024}/g) || [];
+        } catch (e) {
+            parts = [answer];
+        }
+
+        if (!answer) {
+            continue;
+        }
+
+        // Проверяем, если это вопрос про выбор отдела
+        if (question.toLowerCase().includes("отдел")) {
+            selectedDepartment = answer.trim(); // Сохраняем выбранный отдел
+        }
+
+        for (const [index, part] of Object.entries(parts)) {
+            if (index == 0) {
+                items.push({
+                    "name": question,
+                    "value": part,
+                    "inline": false
+                });
+            } else {
+                items.push({
+                    "name": question.concat(" (cont.)"),
+                    "value": part,
+                    "inline": false
+                });
+            }
+        }
+    }
+
+    // Определяем, какую роль тегать
+    if (selectedDepartment in ROLES) {
+        content = ROLES[selectedDepartment];
+    } else {
+        content = "Неизвестный отдел"; // Если отдел не найден
+    }
+
+    var TIME = "";
+    if (TIMESTAMP) {
+        TIME = new Date().toISOString();
+    }
+
+    var options = {
+        "method": "post",
+        "headers": {
+            "Content-Type": "application/json",
+        },
+        "payload": JSON.stringify({
+            "content": content, // Тегаем роль
+            "embeds": [{
+                "title": TITLE,
+                "color": COLOR, // Персиковый цвет (#FFE5B4)
+                "fields": items,
+                "footer": {
+                    "text": FOOTER
+                },
+                "timestamp": TIME
+            }],
+            username: USERNAME || "DefaultBot", // Если USERNAME пустой, используется "DefaultBot"
+            avatar_url: AVATAR_URL || null, // Если AVATAR_URL пустой, передается null
+        })
+    };
+
+    UrlFetchApp.fetch(POST_URL, options);
+}
