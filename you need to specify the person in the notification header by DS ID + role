@@ -1,0 +1,85 @@
+const POST_URL = ""; // URL-webhook
+
+const USERNAME = ""; // Имя от кого будет пост
+const AVATAR_URL = ""; // Ссылка на аватар
+const CONTENT = "<@&8888888888888888> <@&8888888888888888>"; // @ID-role \@admin
+const COLOR = 441245; // Цвет линии слева 
+const TITLE = "•333"; // Заголовок 
+const FOOTER = "by rodjerK"; // Текст снизу (
+const TIMESTAMP = true; // Время поста снизу. 
+
+function onSubmit(e) {
+    const response = e.response.getItemResponses();
+    let items = [];
+    let userId = ""; // Здесь будем хранить ID пользователя
+
+    for (const responseAnswer of response) {
+        const question = responseAnswer.getItem().getTitle();
+        const answer = responseAnswer.getResponse();
+        
+        // Если вопрос содержит упоминание ID пользователя, сохраняем его
+        if (question.includes("ID пользователя") || question.includes("581068069732876298")) {
+            userId = answer;
+            continue; // Пропускаем, чтобы не добавлять в embed
+        }
+        
+        let parts = [];
+
+        try {
+            parts = answer.match(/[\s\S]{1,1024}/g) || [];
+        } catch (e) {
+            parts = answer;
+        }
+
+        if (!answer) {
+            continue;
+        }
+
+        for (const [index, part] of Object.entries(parts)) {
+            if (index == 0) {
+                items.push({
+                    "name": question,
+                    "value": part,
+                    "inline": false
+                });
+            } else {
+                items.push({
+                    "name": question.concat(" (cont.)"),
+                    "value": part,
+                    "inline": false
+                });
+            }
+        }
+    }
+
+    var TIME = "";
+    if (TIMESTAMP) {
+      TIME = new Date().toISOString();
+    }
+
+    // Формируем контент: сначала упоминание пользователя, затем роли из CONTENT
+    const userMention = userId ? `Запрос от человека - <@${userId}>\n${CONTENT}` : CONTENT;
+
+    var options = {
+        "method": "post",
+        "headers": {
+            "Content-Type": "application/json",
+        },
+        "payload": JSON.stringify({
+            "content": userMention,
+            "embeds": [{
+                "title": TITLE,
+                "color": COLOR,
+                "fields": items,
+                "footer": {
+                    "text": FOOTER
+                },
+                "timestamp": TIME
+            }],
+            username: USERNAME,
+            avatar_url: AVATAR_URL,
+        })
+    };
+
+    UrlFetchApp.fetch(POST_URL, options);
+};
