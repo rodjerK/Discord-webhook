@@ -1,0 +1,79 @@
+const POST_URL = ""; // URL-webhook
+
+const USERNAME = "Судебная система"; // Имя отправителя
+const AVATAR_URL = ""; // Ссылка на аватар
+const CONTENT = "<@&888888888888888888> <@&888888888888888888>"; // @роль
+const COLOR = 333333; // Цвет embed (серый)
+const TITLE = "• Судебное уведомление •"; // Заголовок 
+const FOOTER = "Судебная система"; // Текст снизу
+const TIMESTAMP = true; // Время поста снизу
+
+function onSubmit(e) {
+    const response = e.response.getItemResponses();
+    let items = [];
+    let prosecutorId = ""; // ID гос. обвинителя
+    let judgeId = ""; // ID председательствующего судьи
+
+    for (const responseAnswer of response) {
+        const question = responseAnswer.getItem().getTitle();
+        const answer = responseAnswer.getResponse();
+        
+        // Извлекаем ID из соответствующих полей
+        if (question.includes("Государственный обвинитель:")) {
+            prosecutorId = answer.match(/\d{17,19}/)?.[0] || "";
+            continue;
+        }
+        
+        if (question.includes("Председательствующий судья:")) {
+            judgeId = answer.match(/\d{17,19}/)?.[0] || "";
+            continue;
+        }
+        
+        // Остальные ответы добавляем в embed
+        let parts = [];
+        try {
+            parts = answer.match(/[\s\S]{1,1024}/g) || [];
+        } catch (e) {
+            parts = answer;
+        }
+
+        if (!answer) continue;
+
+        for (const [index, part] of Object.entries(parts)) {
+            items.push({
+                "name": index == 0 ? question : question + " (продолжение)",
+                "value": part,
+                "inline": false
+            });
+        }
+    }
+
+    // Формируем заголовок с упоминаниями
+    let mentions = "";
+    if (prosecutorId) mentions += `👨‍⚖️ Гос. обвинитель: <@${prosecutorId}>\n`;
+    if (judgeId) mentions += `⚖️ Предс. судья: <@${judgeId}>\n`;
+    
+    const userMention = mentions + CONTENT;
+
+    // Формируем embed
+    const embed = {
+        "title": TITLE,
+        "color": COLOR,
+        "fields": items,
+        "footer": { "text": FOOTER }
+    };
+    
+    if (TIMESTAMP) embed.timestamp = new Date().toISOString();
+
+    // Отправляем в Discord
+    UrlFetchApp.fetch(POST_URL, {
+        "method": "post",
+        "headers": { "Content-Type": "application/json" },
+        "payload": JSON.stringify({
+            "content": userMention,
+            "embeds": [embed],
+            "username": USERNAME,
+            "avatar_url": AVATAR_URL
+        })
+    });
+};
